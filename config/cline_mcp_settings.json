@@ -1,0 +1,43 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "mcp-sequential-thinking",
+      "args": [],
+      "env": {},
+      "disabled": false,
+      "alwaysAllow": true
+    },
+    "tavily-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "tavily-mcp@0.2.4"
+      ],
+      "env": {
+        "TAVILY_API_KEY": "${env:TAVILY_API_KEY}"
+      },
+      "disabled": false,
+      "alwaysAllow": true
+    },
+    "yfmcp": {
+      "command": "uvx",
+      "args": [
+        "yfmcp@latest"
+      ],
+      "env": {},
+      "disabled": false,
+      "alwaysAllow": true
+    },
+    "prompthouse-mcp": {
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mcp-tools/prompthouse-mcp/dist/index.js"
+      ],
+      "env": {
+        "PROMPTS_PATH": "${workspaceFolder}/prompts"
+      },
+      "disabled": false,
+      "alwaysAllow": true
+    }
+  }
+}
