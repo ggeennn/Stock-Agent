@@ -27,17 +27,6 @@
       "env": {},
       "disabled": false,
       "alwaysAllow": true
-    },
-    "prompthouse-mcp": {
-      "command": "node",
-      "args": [
-        "${workspaceFolder}/mcp-tools/prompthouse-mcp/dist/index.js"
-      ],
-      "env": {
-        "PROMPTS_PATH": "${workspaceFolder}/prompts"
-      },
-      "disabled": false,
-      "alwaysAllow": true
     }
   }
 }
