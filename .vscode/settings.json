@@ -8,6 +8,7 @@
         "groq",
         "Groq",
         "GROQ",
+        "litellm",
         "pycache",
         "TAVILY",
         "venv"

@@ -1,64 +1,58 @@
+# main.py
 import os
-from crewai import Crew, Process, Task # <-- 修正：直接导入Task
 from dotenv import load_dotenv
 from langchain_community.chat_models.litellm import ChatLiteLLM
 from datetime import datetime, timedelta
-from textwrap import dedent # <-- 修正：直接导入dedent
+import json
 
-from src.agents import FinancialAnalysisCrewAgents
+# 导入我们的组件
 from src.tools.custom_tools import IPOCalendarTool
+from src.crews import FinancialAnalysisCrew
 
-load_dotenv()
+def main():
+    load_dotenv()
 
-llm = ChatLiteLLM(
-    model="groq/llama3-8b-8192",
-    api_key=os.environ.get("GROQ_API_KEY")
-)
+    # =================================================================
+    # 阶段一：确定性的数据获取 (无AI参与)
+    # =================================================================
+    print("--- 阶段一: 正在直接执行工具以获取IPO数据 ---")
+    try:
+        ipo_tool = IPOCalendarTool()
+        today = datetime.now()
+        ninety_days_from_now = today + timedelta(days=90)
+        start_date = today.strftime("%Y-%m-%d")
+        end_date = ninety_days_from_now.strftime("%Y-%m-%d")
 
-def run_crew():
-    """设置并启动金融分析Crew。"""
+        tool_output_dict = ipo_tool._run(from_date=start_date, to_date=end_date)
+        
+        if "error" in tool_output_dict:
+            print(f"❌ 数据获取失败: {tool_output_dict['error']}")
+            return # 如果数据获取失败，则提前退出
+        
+        print("✅ 数据获取成功！")
+        print("------------------------------------------------\n")
+    except Exception as e:
+        print(f"❌ 执行工具时发生未知错误: {e}")
+        return
+
+    # =================================================================
+    # 阶段二：AI驱动的报告生成
+    # =================================================================
+    print("--- 阶段二: 正在组建AI报告团队 ---")
     
-    print("======================================")
-    print("## 欢迎来到GEM金融智能体 v2.0核心引擎 ##")
-    print("======================================")
-    
-    agents = FinancialAnalysisCrewAgents()
-    # tasks = StockAnalysisTasks() # <-- 我们不再需要实例化这个类
-    ipo_scout_agent = agents.ipo_scout(llm=llm)
-    ipo_calendar_tool = IPOCalendarTool()
-    
-    # --- 动态生成任务描述 ---
-    today = datetime.now()
-    ninety_days_from_now = today + timedelta(days=90)
-    start_date = today.strftime("%Y-%m-%d")
-    end_date = ninety_days_from_now.strftime("%Y-%m-%d")
-    
-    # --- 直接创建Task实例 ---
-    ipo_discovery_task = Task(
-        description=dedent(f"""
-            使用你的IPO日历工具，扫描从 {start_date} 到 {end_date} 的所有即将进行的和近期已定价的首次公开募股（IPO）。
-            对每一个发现的IPO，提供其公司名称、股票代码、预估的上市日期和交易所。
-            将所有发现结构化地整理成一份简洁的报告。
-            重要提示：你的任务只是查找IPO日历，不要去扫描新闻源。
-        """),
-        expected_output=dedent("""
-            一份Markdown格式的报告，只包含一个部分：“近期及未来IPO列表”。
-            该列表以项目符号（bullet points）的形式展示每个IPO的关键信息（公司名称、股票代码、日期、交易所）。
-        """),
-        agent=ipo_scout_agent,
-        tools=[ipo_calendar_tool]
-    )
-    
-    crew = Crew(
-        agents=[ipo_scout_agent],
-        tasks=[ipo_discovery_task],
-        process=Process.sequential,
-        verbose=True,
-        manager_llm=llm
+    llm = ChatLiteLLM(
+        model="gemini/gemini-2.0-flash",
+        api_key=os.environ.get("GOOGLE_API_KEY"),
+        # model="groq/llama3-8b-8192",
+        # api_key=os.environ.get("GROQ_API_KEY"),
+        temperature=0.0
     )
 
-    print(f"\n## 正在启动IPO发现任务 (日期范围: {start_date} to {end_date})...")
-    result = crew.kickoff()
+    # 将第一阶段获取的数据，作为输入来创建报告Crew
+    financial_crew = FinancialAnalysisCrew(llm).setup_reporting_crew(tool_output_dict)
+    
+    print("\n## 正在启动报告生成任务...")
+    result = financial_crew.kickoff()
 
     print("\n\n##################################################")
     print("## 团队执行完成!")
@@ -67,4 +61,4 @@ def run_crew():
     print("##################################################")
 
 if __name__ == "__main__":
-    run_crew()
+    main()
