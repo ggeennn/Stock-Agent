@@ -5,7 +5,7 @@ from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 import finnhub
 import os
-
+from pprint import pprint
 class IPOCalendarInput(BaseModel):
     """Input schema for IPOCalendarTool."""
     from_date: str = Field(..., description="Start date in YYYY-MM-DD format.")
@@ -29,7 +29,20 @@ class IPOCalendarTool(BaseTool):
         finnhub_client = finnhub.Client(api_key=api_key)
         
         try:
+            # ⬇️⬇️⬇️ 在这里插入我们的调试代码 ⬇️⬇️⬇️
+            # ==========================================================
+            print("\n\n" + "="*50)
+            print("🕵️  DEBUG: Raw Response from Finnhub API")
+            print("="*50)
+
             response_data = finnhub_client.ipo_calendar(_from=from_date, to=to_date)
+
+            # 使用pprint可以更美观地打印出复杂的字典或JSON
+            pprint(response_data)
+
+            print("="*50 + "\n\n")
+            # ==========================================================
+            # ⬆️⬆️⬆️ 调试代码结束 ⬆️⬆️⬆️
             
             if not isinstance(response_data, dict) or 'ipoCalendar' not in response_data:
                 return {"ipos": [{"error": f"Finnhub API response is not in the expected format. Response: {str(response_data)}"}]}

@@ -3,45 +3,61 @@
 from crewai import Crew, Process
 from src.agents import FinancialAnalysisCrewAgents
 from src.tasks import StockAnalysisTasks
+from src.tools.custom_tools import IPOCalendarTool
+from datetime import datetime, timedelta
 
 class FinancialAnalysisCrew:
     def __init__(self, llm):
         self.llm = llm
         self.agents = FinancialAnalysisCrewAgents()
         self.tasks = StockAnalysisTasks()
+        self.ipo_calendar_tool = IPOCalendarTool()
 
-    def setup_crew(self):
-        # 创建智能体实例
-        ipo_scout_agent = self.agents.ipo_scout(self.llm)
-        # macro_analyst_agent = self.agents.macroeconomic_analyst(self.llm) # 为下一步准备
+    def run(self):
+        """
+        运行一个确定性的、两阶段的工作流。
+        """
+        # =================================================================
+        # 阶段一：确定性的数据获取 (无AI参与)
+        # =================================================================
+        print("\n--- [阶段一]: 正在直接执行工具以获取IPO数据 ---")
+        today = datetime.now()
+        end_date = (today + timedelta(days=90)).strftime("%Y-%m-%d")
+        start_date = today.strftime("%Y-%m-%d")
 
-        # 1. 创建数据采集任务
-        ipo_data_task = self.tasks.ipo_data_gathering_task(ipo_scout_agent)
-        
-        # 2. 创建报告生成任务，并将第一个任务作为其上下文
-        #    这确保了报告任务只能看到工具的真实输出
-        ipo_report_task = self.tasks.ipo_report_generation_task(
-            agent=ipo_scout_agent, 
-            context=[ipo_data_task] # 关键：将任务一作为任务二的上下文
+        ipo_data = self.ipo_calendar_tool._run(
+            from_date=start_date,
+            to_date=end_date
         )
-        # macro_analysis_task = self.tasks.macro_analysis_task(macro_analyst_agent) # 为下一步准备
+        print("✅ [阶段一]: 数据获取成功！")
 
-        # 注意：在v2.0的实现中，我们将工具直接在agent定义时赋予，
-        # 因此在创建Task时不再需要手动指定tools列表。
-        # 这比我们之前的实现更清晰。
+        if "error" in ipo_data:
+            print(f"❌ 工具返回错误: {ipo_data['error']}")
+            return
 
-        # 创建并返回包含当前阶段所有智能体和任务的Crew
-        return Crew(
-            agents=[
-                ipo_scout_agent, 
-                # macro_analyst_agent # 为下一步准备
-            ],
-            tasks=[
-                ipo_data_task,
-                ipo_report_task
-                # macro_analysis_task # 为下一步准备
-            ],
+        # =================================================================
+        # 阶段二：AI驱动的报告生成
+        # =================================================================
+        print("\n--- [阶段二]: 正在组建AI报告团队 ---")
+
+        # 实例化我们真正需要的报告分析师
+        report_synthesizer_agent = self.agents.financial_report_synthesizer(self.llm)
+
+        # 创建报告任务，并将正确的智能体和获取到的数据传入
+        reporting_task = self.tasks.ipo_reporting_task(
+            agent=report_synthesizer_agent,
+            ipo_data=ipo_data
+        )
+
+        # 组建一个只包含报告智能体和报告任务的高效Crew
+        crew = Crew(
+            agents=[report_synthesizer_agent],
+            tasks=[reporting_task],
             process=Process.sequential,
             verbose=True,
             manager_llm=self.llm
         )
+
+        print("\n## 正在启动报告生成任务...")
+        result = crew.kickoff()
+        return result
